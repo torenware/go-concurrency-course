@@ -14,6 +14,13 @@
                     {{end}}
                     {{if .Authenticated}}
                         <a class="nav-link active" href="/logout">Logout</a>
+                        {{if .User}}
+                          <p class="text-white mt-2 ms-5">
+                          Hello, {{ .User.FirstName}} {{ .User.LastName }}
+                          </p>
+                          {{else}}
+                          <p class="text-white mt-2 ms-5">Hello, User!</p>
+                        {{end}}
                     {{else}}
                         <a class="nav-link active" href="/login">Login</a>
                     {{end}}

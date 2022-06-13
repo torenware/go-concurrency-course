@@ -9,11 +9,13 @@
       "type": "go",
       "request": "launch",
       "mode": "auto",
-      "program": "${fileDirname}",
+      "program": "${workspaceFolder}/cmd/web",
       "env": {
         "DSN": "host=localhost port=5532 user=postgres password=password dbname=concurrency sslmode=disable timezone=UTC connect_timeout=5",
         "REDIS": "127.0.0.1:6379"
-      }
+      },
+      "envFile": "${workspaceFolder}/.env",
+      "cwd": "${workspaceFolder}"
     }
   ]
 }

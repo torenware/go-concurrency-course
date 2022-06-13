@@ -121,6 +121,7 @@ func (app *Config) PostRegister(w http.ResponseWriter, r *http.Request) {
 	app.InfoLog.Printf("Mail would be sent for user %d", uid)
 
 	url := fmt.Sprintf("http://localhost:8080/activate?email=%s", email)
+	NewURLSigner()
 	signedURL := GenerateTokenFromString(url)
 
 	msg := Message{
@@ -140,6 +141,7 @@ func (app *Config) PostRegister(w http.ResponseWriter, r *http.Request) {
 func (app *Config) ActivateUser(w http.ResponseWriter, r *http.Request) {
 	url := r.RequestURI
 	rebuiltURL := fmt.Sprintf("http://localhost:8080%s", url)
+	NewURLSigner()
 	okay := VerifyToken(rebuiltURL)
 
 	if !okay {
@@ -153,6 +155,12 @@ func (app *Config) ActivateUser(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		app.ErrorLog.Println("problem processing user", err)
 		app.errorFlash(w, r, "Sorry! Problem handling your registration!", "/")
+		return
+	}
+
+	if user.Active == 1 {
+		app.Session.Put(r.Context(), "flash", "You are already registered!")
+		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
 	}
 
