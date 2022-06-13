@@ -149,6 +149,11 @@ func (app *Config) ActivateUser(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if Expired(rebuiltURL, 60) {
+		app.errorFlash(w, r, "Your confirmation link has expired!", "/")
+		return
+	}
+
 	// Mark the user as activated and valid.
 	email := r.URL.Query().Get("email")
 	user, err := app.Models.User.GetByEmail(email)
