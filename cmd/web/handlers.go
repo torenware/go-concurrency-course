@@ -1,6 +1,9 @@
 package main
 
-import "net/http"
+import (
+	"fmt"
+	"net/http"
+)
 
 func (app *Config) HomePage(w http.ResponseWriter, r *http.Request) {
 	app.render(w, r, "home.page.gohtml", nil)
@@ -31,11 +34,28 @@ func (app *Config) PostLogin(w http.ResponseWriter, r *http.Request) {
 	}
 
 	matches, err := user.PasswordMatches(password)
-	if err != nil || !matches {
+	if err != nil {
 		// set up flash etc.
 		app.Session.Put(r.Context(), "error", "Invalid credentials")
 		http.Redirect(w, r, "/login", http.StatusSeeOther)
 		return
+	}
+
+	if !matches {
+		// for a test, let's assume we want to send a message every time
+		// someone types in a wrong password. I'd hate to be on the
+		// receiving end of this address :-)
+		msg := Message{
+			Subject: "Bad Login Attempt",
+			To:      "faults@server-sec.com",
+			Data:    fmt.Sprintf("Failed login by %s. Send the dogs.", user.Email),
+		}
+		app.sendMail(msg)
+
+		app.Session.Put(r.Context(), "error", "Invalid credentials")
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+
 	}
 
 	app.Session.Put(r.Context(), "userID", user.ID)
