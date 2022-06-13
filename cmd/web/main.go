@@ -131,6 +131,8 @@ func initRedis() *redis.Pool {
 }
 
 func (app *Config) serve() {
+	defer app.InfoLog.Println("Web listener exited.")
+
 	srv := http.Server{
 		Addr:    fmt.Sprintf(":%s", webPort),
 		Handler: app.routes(),
