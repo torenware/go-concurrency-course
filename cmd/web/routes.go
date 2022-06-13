@@ -15,5 +15,14 @@ func (app *Config) routes() http.Handler {
 
 	mux.Get("/", app.HomePage)
 
+	mux.Get("/login", app.LoginPage)
+	mux.Post("/login", app.PostLogin)
+	mux.Get("/logout", app.Logout)
+
+	mux.Get("/register", app.Register)
+	mux.Post("/register", app.PostRegister)
+
+	mux.Get("/activate", app.ActivateUser)
+
 	return mux
 }
