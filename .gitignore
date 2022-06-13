@@ -1,0 +1,6 @@
+myapp
+.env
+.env.*
+
+*~
+
