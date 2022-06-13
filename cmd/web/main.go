@@ -2,11 +2,15 @@ package main
 
 import (
 	"database/sql"
+	"encoding/gob"
+	"final-project/data"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 	"sync"
+	"syscall"
 	"time"
 
 	// postgres drivers
@@ -44,11 +48,13 @@ func main() {
 		Wait:     &wg,
 		InfoLog:  infoLog,
 		ErrorLog: errorLog,
+		Models:   data.New(conn),
 	}
 
 	// set up mail
 
 	// listen for web connections
+	go app.listenForShutdown()
 	app.serve()
 }
 
@@ -100,6 +106,7 @@ func openDB(dsn string) (*sql.DB, error) {
 }
 
 func initSession() *scs.SessionManager {
+	gob.Register(data.User{})
 	session := scs.New()
 	session.Store = redisstore.New(initRedis())
 	session.Lifetime = 24 * time.Hour
@@ -132,4 +139,23 @@ func (app *Config) serve() {
 	if err != nil {
 		log.Panicln(err)
 	}
+}
+
+// Implement a graceful shutdown. We use a goroutine that listens
+// for OS signals.
+
+func (app *Config) listenForShutdown() {
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+	app.shutdown()
+	os.Exit(0)
+}
+
+func (app *Config) shutdown() {
+	app.InfoLog.Println("goroutines get shut down here.")
+
+	// wait for all systems to finish
+	app.Wait.Wait()
+	app.InfoLog.Println("shutdown complete.")
 }
