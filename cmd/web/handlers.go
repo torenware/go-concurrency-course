@@ -2,11 +2,15 @@ package main
 
 import (
 	"database/sql"
+	"errors"
 	"final-project/data"
 	"fmt"
 	"net/http"
 	"strconv"
 	"time"
+
+	"github.com/phpdave11/gofpdf"
+	"github.com/phpdave11/gofpdf/contrib/gofpdi"
 )
 
 func (app *Config) HomePage(w http.ResponseWriter, r *http.Request) {
@@ -185,11 +189,6 @@ func (app *Config) ActivateUser(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *Config) ChoosePlans(w http.ResponseWriter, r *http.Request) {
-	if !app.Session.Exists(r.Context(), "userID") {
-		app.Session.Put(r.Context(), "warning", "You must be logged in to see this page")
-		http.Redirect(w, r, "/login", http.StatusTemporaryRedirect)
-		return
-	}
 
 	plans, err := app.Models.Plan.GetAll()
 	if err != nil {
@@ -207,40 +206,84 @@ func (app *Config) ChoosePlans(w http.ResponseWriter, r *http.Request) {
 }
 
 func (app *Config) SubscribePlan(w http.ResponseWriter, r *http.Request) {
-	if !app.Session.Exists(r.Context(), "userID") {
-		app.Session.Put(r.Context(), "warning", "You must be logged in to see this page")
-		http.Redirect(w, r, "/login", http.StatusTemporaryRedirect)
-		return
-	}
 
 	planParam := r.URL.Query().Get("plan")
 	planID, err := strconv.Atoi(planParam)
 	if err != nil {
 		app.ErrorLog.Println("subscribe passed wrong parameter")
-		app.errorFlash(w, r, "Cannot subscribe to that plan.", "/plans")
+		app.errorFlash(w, r, "Cannot subscribe to that plan.", "/members/plans")
 		return
 	}
 
 	plan, err := app.Models.Plan.GetOne(planID)
 	if err != nil {
 		app.ErrorLog.Printf("subscribe passed unavailable plan %d with error %v", planID, err)
-		app.errorFlash(w, r, "Cannot subscribe to that plan.", "/plans")
+		app.errorFlash(w, r, "Cannot subscribe to that plan.", "/members/plans")
 		return
 	}
 
 	user, ok := app.Session.Get(r.Context(), "user").(data.User)
 	if !ok {
 		app.ErrorLog.Println("user not in session?")
-		app.errorFlash(w, r, "Cannot subscribe to that plan.", "/plans")
+		app.errorFlash(w, r, "Please log in.", "/login")
 		return
 	}
 
 	err = app.Models.Plan.SubscribeUserToPlan(user, *plan)
 	if err != nil {
 		app.ErrorLog.Printf("could not subscribe: %v", err)
-		app.errorFlash(w, r, "Cannot subscribe to that plan.", "/plans")
+		app.errorFlash(w, r, "Cannot subscribe to that plan.", "/members/plans")
 		return
 	}
+
+	// Generate an invoice
+	app.Wait.Add(1)
+	go func() {
+		defer app.Wait.Done()
+
+		invoice, err := app.GenerateInvoice(user, *plan)
+		if err != nil {
+			app.ErrorChan <- err
+		}
+
+		// send an email
+		msg := Message{
+			To:       user.Email,
+			Subject:  fmt.Sprintf("You've Subscribed to Our %s", plan.PlanName),
+			Data:     invoice,
+			Template: "invoice",
+		}
+		// kick the invoice off to its own routine.
+		app.sendMail(msg)
+	}()
+
+	// generate a customized manual PDF
+	app.Wait.Add(1)
+	go func() {
+		defer app.Wait.Done()
+
+		pdf := app.GenerateManual(user, plan)
+		tmpFile := fmt.Sprintf("./tmp/%d_user-manual.pdf", user.ID)
+		err := pdf.OutputFileAndClose(tmpFile)
+		if err != nil {
+			app.ErrorChan <- err
+			return
+		}
+
+		msg := Message{
+			To:      user.Email,
+			Subject: fmt.Sprintf("Your %s User Manual", plan.PlanName),
+			Data:    "Your personalized manual is attached:",
+			AttachmentMap: map[string]string{
+				"Manual.pdf": tmpFile,
+			},
+		}
+
+		app.sendMail(msg)
+
+		// temp: an error test
+		app.ErrorChan <- errors.New("a custom error test")
+	}()
 
 	// update the user in session, since it has updated.
 	userPtr, err := app.Models.User.GetOne(user.ID)
@@ -253,5 +296,36 @@ func (app *Config) SubscribePlan(w http.ResponseWriter, r *http.Request) {
 	}
 
 	app.Session.Put(r.Context(), "flash", fmt.Sprintf("You are subscribed to %s", plan.PlanName))
-	http.Redirect(w, r, "/", http.StatusSeeOther)
+	http.Redirect(w, r, "/members/plans", http.StatusSeeOther)
+}
+
+func (app *Config) GenerateInvoice(user data.User, plan data.Plan) (string, error) {
+	// We punt!
+	return plan.PlanAmountFormatted, nil
+}
+
+func (app *Config) GenerateManual(user data.User, plan *data.Plan) *gofpdf.Fpdf {
+	pdf := gofpdf.New("P", "mm", "Letter", "")
+	pdf.SetMargins(10, 13, 10) //in mm as specified
+
+	importer := gofpdi.NewImporter()
+
+	// simulate a complex PDF...
+	time.Sleep(5 * time.Second)
+
+	t := gofpdi.ImportPage(pdf, "./pdfs/manual.pdf", 1, "/MediaBox")
+
+	// center where we are writing
+	importer.UseImportedTemplate(pdf, t, 0, 0, 215.9, 0)
+
+	// Put down the pen
+	pdf.SetX(75)
+	pdf.SetY(150)
+
+	pdf.SetFont("Ariel", "", 12)
+	pdf.MultiCell(0, 4, fmt.Sprintf("%s %s", user.FirstName, user.LastName), "", "C", false)
+	pdf.Ln(5)
+	pdf.MultiCell(0, 4, fmt.Sprintf("%s User Guide", plan.PlanName), "", "C", false)
+
+	return pdf
 }

@@ -43,17 +43,22 @@ func main() {
 	errorLog := log.New(os.Stdout, "ERROR\t", log.Ltime|log.Ldate|log.Lshortfile)
 
 	app = &Config{
-		DB:       conn,
-		Session:  session,
-		Wait:     &wg,
-		InfoLog:  infoLog,
-		ErrorLog: errorLog,
-		Models:   data.New(conn),
+		DB:            conn,
+		Session:       session,
+		Wait:          &wg,
+		InfoLog:       infoLog,
+		ErrorLog:      errorLog,
+		Models:        data.New(conn),
+		ErrorChan:     make(chan error),
+		ErrorChanDone: make(chan bool),
 	}
 
 	// set up mail
 	app.Mailer = app.createMail()
 	go app.listenForMail()
+
+	// set up error handler
+	go app.listenForError()
 
 	// listen for web connections
 	go app.listenForShutdown()
@@ -130,6 +135,17 @@ func initRedis() *redis.Pool {
 	return redisPool
 }
 
+func (app *Config) listenForError() {
+	for {
+		select {
+		case err := <-app.ErrorChan:
+			app.ErrorLog.Println(err)
+		case <-app.ErrorChanDone:
+			return
+		}
+	}
+}
+
 func (app *Config) serve() {
 	defer app.InfoLog.Println("Web listener exited.")
 
@@ -162,8 +178,9 @@ func (app *Config) shutdown() {
 	// wait for all systems to finish
 	app.Wait.Wait()
 
-	// stop the mail listener
+	// stop the listeners
 	app.Mailer.DoneChan <- true
+	app.ErrorChanDone <- true
 
 	app.InfoLog.Println("shutdown complete.")
 
@@ -171,6 +188,8 @@ func (app *Config) shutdown() {
 	close(app.Mailer.MailerChan)
 	close(app.Mailer.ErrorChan)
 	close(app.Mailer.DoneChan)
+	close(app.ErrorChan)
+	close(app.ErrorChanDone)
 }
 
 func (app *Config) createMail() Mail {

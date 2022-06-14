@@ -35,9 +35,11 @@ type Message struct {
 	To          string
 	Subject     string
 	Attachments []string
-	Data        any
-	DataMap     map[string]any
-	Template    string
+	// allow attaching on a different name than file
+	AttachmentMap map[string]string
+	Data          any
+	DataMap       map[string]any
+	Template      string
 }
 
 func (app *Config) listenForMail() {
@@ -70,10 +72,20 @@ func (m *Mail) sendMail(msg Message, errorChan chan error) {
 		msg.FromName = m.FromName
 	}
 
-	data := map[string]any{
-		"message": msg.Data,
+	if msg.AttachmentMap == nil {
+		msg.AttachmentMap = make(map[string]string)
 	}
-	msg.DataMap = data
+
+	// data := map[string]any{
+	// 	"message": msg.Data,
+	// }
+
+	// We change the above so we do not clobber
+	// the map and other things we might have added to it.
+	if len(msg.DataMap) == 0 {
+		msg.DataMap = make(map[string]any)
+	}
+	msg.DataMap["message"] = msg.Data
 
 	formattedMessage, err := m.buildHTMLMessage(msg)
 	if err != nil {
@@ -106,9 +118,9 @@ func (m *Mail) sendMail(msg Message, errorChan chan error) {
 		SetBody(mail.TextPlain, plainMessage).
 		AddAlternative(mail.TextHTML, formattedMessage)
 
-	if len(msg.Attachments) > 0 {
-		for _, atmt := range msg.Attachments {
-			email.AddAttachment(atmt)
+	if len(msg.AttachmentMap) > 0 {
+		for fname, atmt := range msg.AttachmentMap {
+			email.AddAttachment(atmt, fname)
 		}
 	}
 
