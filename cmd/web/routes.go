@@ -25,6 +25,9 @@ func (app *Config) routes() http.Handler {
 
 	mux.Get("/activate", app.ActivateUser)
 
+	mux.Get("/plans", app.ChoosePlans)
+	mux.Get("/subscribe", app.SubscribePlan)
+
 	// test for mail
 	mux.Get("/test-email", func(w http.ResponseWriter, r *http.Request) {
 		m := Mail{

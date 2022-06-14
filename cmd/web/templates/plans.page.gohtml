@@ -1,0 +1,132 @@
+{{template "base" .}}
+
+
+
+{{define "content" }}
+   {{ $user := .User }}
+   {{ $plan := 0 }}
+   {{ if and $user $user.Plan $user.Plan.ID }}
+      {{ $plan = $user.Plan.ID }}
+   {{ end}}
+    <div class="container">
+        <div class="row">
+            <div class="col-md-8 offset-md-2">
+                <h1 class="mt-5">Plans</h1>
+                <hr>
+                <table class="table table-condensed table-striped">
+                  <thead>
+                    <th>
+                      Plan
+                    </th>
+                    <th>
+                      Price
+                    </th>
+                    <th class="text-center">
+                      Your Plan
+                    </th>
+                  </thead>
+                  <tbody id="plan-list">
+                  {{ range .Data.Plans }}
+                    <tr>
+                      <td>{{ .PlanName }}</td>
+                      <td>{{ .PlanAmountFormatted }}</td>
+                      <td class="text-center">
+                      {{ if eq $plan .ID}}
+                        <span class="badge bg-primary">Subscribed</span>
+                      {{ else }}
+                        <input type='radio' name='plan' value="{{ .ID }}">
+                      {{ end }}
+                      </td>
+                    </tr>
+                  {{ end }}
+
+                  </tbody>
+                </table>
+                <button id="buy" class="btn btn-primary">
+                  {{ if $plan }}
+                    Update Your Plan
+                  {{ else }}
+                    Buy Your Plan
+                  {{ end }}
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    <dialog id="confirm-buy" class="w-50 h-50">
+      <form method="dialog" class="h-100 d-flex flex-column justify-content-between">
+      <h2>Purchasing Your Plan</h2>
+      <p>Want to buy this plan?</p>
+      <ul>
+        <li id="plan-name"></li>
+        <li id="plan-price"></li>
+      </ul>
+      <div class="d-flex justify-content-center">
+        <button class="btn btn-secondary" value="cancel">Cancel</button>
+        <button class="ms-2 btn btn-primary" id="confirmBtn" value="default">Confirm</button>
+      </div>
+      </form>
+    </dialog>
+{{end}}
+
+{{define "js"}}
+    <script>
+      let selectedBtn = null;
+      const plans = [
+        {{ range .Data.Plans }}
+          {
+            id: {{ .ID }},
+            name: "{{ .PlanName }}",
+            cents: {{ .PlanAmount }},
+            price: "{{ .PlanAmountFormatted }}",
+          },
+        {{ end }}
+      ];
+
+      const getPlan = () => {
+        const match = plans.filter(item => {
+          return item.id === parseInt(selectedBtn);
+        });
+
+        return match.length ? match[0] : null;
+      }
+
+
+      document.addEventListener('DOMContentLoaded', () => {
+        const dialog = document.querySelector('#confirm-buy');
+        const confirmBtn = document.querySelector('#confirmBtn');
+        const buyBtn = document.querySelector('#buy');
+        // once users have selected plans, pull from user...
+        buyBtn.setAttribute("disabled", true);
+
+        buyBtn.addEventListener("click", () =>{
+          const plan = getPlan();
+          console.log("would buy", plan.name);
+          const nameOfPlan = document.querySelector('#plan-name');
+          const priceOfPlan = document.querySelector('#plan-price');
+          nameOfPlan.innerHTML = `<strong>Plan Name:</strong>&nbsp;${plan.name}`;
+          priceOfPlan.innerHTML = `<strong>Cost / Month:</strong>&nbsp;${plan.price}`;
+          dialog.showModal();
+        });
+
+        confirmBtn.addEventListener("click", () => {
+          window.location.href = "/subscribe?plan=" + selectedBtn;
+        });
+
+        const tbody = document.querySelector('#plan-list');
+        if (tbody) {
+          tbody.addEventListener("change", evt => {
+            console.log("caught changed", evt.target.value);
+            selectedBtn = evt.target.value;
+            if (selectedBtn) {
+              buyBtn.removeAttribute("disabled");
+              const plan = getPlan();
+              buyBtn.innerText = `Buy ${plan.name}`;
+            }
+          });
+        }
+      })
+
+    </script>
+{{end}}

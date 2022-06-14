@@ -5,6 +5,7 @@ import (
 	"final-project/data"
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 )
 
@@ -180,5 +181,77 @@ func (app *Config) ActivateUser(w http.ResponseWriter, r *http.Request) {
 	}
 	msg := fmt.Sprintf("Welcome to the site, %s. You are now registered!", user.FirstName)
 	app.Session.Put(r.Context(), "flash", msg)
+	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
+func (app *Config) ChoosePlans(w http.ResponseWriter, r *http.Request) {
+	if !app.Session.Exists(r.Context(), "userID") {
+		app.Session.Put(r.Context(), "warning", "You must be logged in to see this page")
+		http.Redirect(w, r, "/login", http.StatusTemporaryRedirect)
+		return
+	}
+
+	plans, err := app.Models.Plan.GetAll()
+	if err != nil {
+		app.errorFlash(w, r, "Sorry! Could not display this page", "/")
+		return
+	}
+
+	data := map[string]any{
+		"Plans": plans,
+	}
+
+	app.render(w, r, "plans.page.gohtml", &TemplateData{
+		Data: data,
+	})
+}
+
+func (app *Config) SubscribePlan(w http.ResponseWriter, r *http.Request) {
+	if !app.Session.Exists(r.Context(), "userID") {
+		app.Session.Put(r.Context(), "warning", "You must be logged in to see this page")
+		http.Redirect(w, r, "/login", http.StatusTemporaryRedirect)
+		return
+	}
+
+	planParam := r.URL.Query().Get("plan")
+	planID, err := strconv.Atoi(planParam)
+	if err != nil {
+		app.ErrorLog.Println("subscribe passed wrong parameter")
+		app.errorFlash(w, r, "Cannot subscribe to that plan.", "/plans")
+		return
+	}
+
+	plan, err := app.Models.Plan.GetOne(planID)
+	if err != nil {
+		app.ErrorLog.Printf("subscribe passed unavailable plan %d with error %v", planID, err)
+		app.errorFlash(w, r, "Cannot subscribe to that plan.", "/plans")
+		return
+	}
+
+	user, ok := app.Session.Get(r.Context(), "user").(data.User)
+	if !ok {
+		app.ErrorLog.Println("user not in session?")
+		app.errorFlash(w, r, "Cannot subscribe to that plan.", "/plans")
+		return
+	}
+
+	err = app.Models.Plan.SubscribeUserToPlan(user, *plan)
+	if err != nil {
+		app.ErrorLog.Printf("could not subscribe: %v", err)
+		app.errorFlash(w, r, "Cannot subscribe to that plan.", "/plans")
+		return
+	}
+
+	// update the user in session, since it has updated.
+	userPtr, err := app.Models.User.GetOne(user.ID)
+	if err != nil {
+		// this is a convenience, so if there's an error,
+		// log it and ignore.
+		app.ErrorLog.Printf("error retrieving updated user: %v", err)
+	} else {
+		app.Session.Put(r.Context(), "user", *userPtr)
+	}
+
+	app.Session.Put(r.Context(), "flash", fmt.Sprintf("You are subscribed to %s", plan.PlanName))
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
