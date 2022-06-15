@@ -313,7 +313,7 @@ func (app *Config) GenerateManual(user data.User, plan *data.Plan) *gofpdf.Fpdf 
 	// simulate a complex PDF...
 	time.Sleep(5 * time.Second)
 
-	t := gofpdi.ImportPage(pdf, "./pdfs/manual.pdf", 1, "/MediaBox")
+	t := importer.ImportPage(pdf, "./pdfs/manual.pdf", 1, "/MediaBox")
 	pdf.AddPage()
 
 	// center where we are writing
@@ -323,7 +323,7 @@ func (app *Config) GenerateManual(user data.User, plan *data.Plan) *gofpdf.Fpdf 
 	pdf.SetX(75)
 	pdf.SetY(150)
 
-	pdf.SetFont("Ariel", "", 12)
+	pdf.SetFont("Arial", "", 12)
 	pdf.MultiCell(0, 4, fmt.Sprintf("%s %s", user.FirstName, user.LastName), "", "C", false)
 	pdf.Ln(5)
 	pdf.MultiCell(0, 4, fmt.Sprintf("%s User Guide", plan.PlanName), "", "C", false)
