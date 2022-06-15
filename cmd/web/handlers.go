@@ -314,6 +314,7 @@ func (app *Config) GenerateManual(user data.User, plan *data.Plan) *gofpdf.Fpdf 
 	time.Sleep(5 * time.Second)
 
 	t := gofpdi.ImportPage(pdf, "./pdfs/manual.pdf", 1, "/MediaBox")
+	pdf.AddPage()
 
 	// center where we are writing
 	importer.UseImportedTemplate(pdf, t, 0, 0, 215.9, 0)
