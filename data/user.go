@@ -3,9 +3,10 @@ package data
 import (
 	"context"
 	"errors"
-	"golang.org/x/crypto/bcrypt"
 	"log"
 	"time"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 // User is the structure which holds one user from the database.
@@ -28,19 +29,19 @@ func (u *User) GetAll() ([]*User, error) {
 	defer cancel()
 
 	query := `
-	select 
-    	id, 
-       	email, 
-       	first_name, 
-       	last_name, 
-       	password, 
-       	user_active, 
-       	is_admin, 
-       	created_at, 
+	select
+    	id,
+       	email,
+       	first_name,
+       	last_name,
+       	password,
+       	user_active,
+       	is_admin,
+       	created_at,
        	updated_at
-	from 
-	    users 
-	order by 
+	from
+	    users
+	order by
 	    last_name`
 
 	rows, err := db.QueryContext(ctx, query)
@@ -81,19 +82,19 @@ func (u *User) GetByEmail(email string) (*User, error) {
 	defer cancel()
 
 	query := `
-			select 
-			    id, 
-			    email, 
-			    first_name, 
-			    last_name, 
-			    password, 
-			    user_active, 
-			    is_admin, 
-			    created_at, 
-			    updated_at 
-			from 
-			    users 
-			where 
+			select
+			    id,
+			    email,
+			    first_name,
+			    last_name,
+			    password,
+			    user_active,
+			    is_admin,
+			    created_at,
+			    updated_at
+			from
+			    users
+			where
 			    email = $1`
 
 	var user User
@@ -116,7 +117,7 @@ func (u *User) GetByEmail(email string) (*User, error) {
 	}
 
 	// get plan, if any
-	query = `select p.id, p.plan_name, p.plan_amount, p.created_at, p.updated_at from 
+	query = `select p.id, p.plan_name, p.plan_amount, p.created_at, p.updated_at from
 			plans p
 			left join user_plans up on (p.id = up.plan_id)
 			where up.user_id = $1`
@@ -144,8 +145,8 @@ func (u *User) GetOne(id int) (*User, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
 	defer cancel()
 
-	query := `select id, email, first_name, last_name, password, user_active, is_admin, created_at, updated_at 
-				from users 
+	query := `select id, email, first_name, last_name, password, user_active, is_admin, created_at, updated_at
+				from users
 				where id = $1`
 
 	var user User
@@ -168,7 +169,7 @@ func (u *User) GetOne(id int) (*User, error) {
 	}
 
 	// get plan, if any
-	query = `select p.id, p.plan_name, p.plan_amount, p.created_at, p.updated_at from 
+	query = `select p.id, p.plan_name, p.plan_amount, p.created_at, p.updated_at from
 			plans p
 			left join user_plans up on (p.id = up.plan_id)
 			where up.user_id = $1`
