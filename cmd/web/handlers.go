@@ -1,7 +1,6 @@
 package main
 
 import (
-	"database/sql"
 	"errors"
 	"final-project/data"
 	"fmt"
@@ -101,7 +100,7 @@ func (app *Config) PostRegister(w http.ResponseWriter, r *http.Request) {
 	last := r.Form.Get("last-name")
 
 	_, err = app.Models.User.GetByEmail(email)
-	if err != sql.ErrNoRows {
+	if err != nil {
 		app.errorFlash(w, r, "Sorry! This email is not available", "/register")
 		return
 	}

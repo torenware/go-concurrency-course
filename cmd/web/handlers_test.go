@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 )
 
 // Get pages
@@ -201,12 +202,86 @@ func TestHandlers_SubscribePlan(t *testing.T) {
 		t.Error("subscribe-plan: expected a flash message on success")
 	}
 
-	testApp.InfoLog.Println("now wait for routines to complete")
-	testApp.Wait.Wait()
+	// Make sure the WG clears...
+	wgDone := make(chan bool)
+
+	go func() {
+		testApp.Wait.Wait()
+		wgDone <- true
+	}()
+
+	select {
+	case <-wgDone:
+	case <-time.After(10 * time.Second):
+		t.Error("subscribe-plan: waitgroup did not release; timing out.")
+	}
 	testApp.InfoLog.Println("wait group released.")
 
 	if len(mailMessages) != 2 {
 		t.Errorf("subscribe-plan: expected 2 mail messages, got %d", len(mailMessages))
+	}
+
+}
+
+func TestHandlers_PostRegister(t *testing.T) {
+	formPost := url.Values{}
+	formPost.Add("email", "who@first.com")
+	formPost.Add("password", "it-is-a-secret")
+	formPost.Add("verify-password", "it-is-a-secret")
+	formPost.Add("first-name", "Lois")
+	formPost.Add("last-name", "Lane")
+
+	req, _ := http.NewRequest("POST", "/register", strings.NewReader(formPost.Encode()))
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	ctx := createMockContext(req)
+	req = req.WithContext(ctx)
+
+	rr := httptest.NewRecorder()
+
+	handler := http.HandlerFunc(testApp.PostRegister)
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusSeeOther {
+		t.Errorf("post-register: expected redirect, got %d", rr.Code)
+	}
+
+	resp := rr.Result()
+	location := resp.Header.Get("Location")
+	if location != "/" {
+		t.Errorf("post-register: expected redirect to /, got %s", location)
+	}
+
+	if !testApp.Session.Exists(ctx, "flash") {
+		t.Error("post-register: did not get success message")
+	}
+
+	// Make sure the WG clears...
+	wgDone := make(chan bool)
+
+	go func() {
+		testApp.Wait.Wait()
+		wgDone <- true
+	}()
+
+	select {
+	case <-wgDone:
+	case <-time.After(10 * time.Second):
+		t.Error("post-register: waitgroup did not release; timing out.")
+	}
+	testApp.InfoLog.Println("wait group released.")
+
+	if len(mailMessages) != 1 {
+		t.Errorf("post-register: expected 1 mail message, got %d", len(mailMessages))
+	}
+
+	data, ok := mailMessages[0].Data.(string)
+
+	if !ok {
+		t.Error("post-register: could not get data back from mail message")
+	}
+
+	if !VerifyToken(data) {
+		t.Error("post-register: did not get signed URL from message")
 	}
 
 }

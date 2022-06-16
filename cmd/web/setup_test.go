@@ -23,6 +23,9 @@ func TestMain(m *testing.M) {
 	tempDirectory = "../../tmp"
 	pdfDirectory = "../../pdfs"
 
+	// Populated env variables
+	os.Setenv("MAIL_LINK_SECRET", "oops-did-it-again")
+
 	gob.Register(data.User{})
 	session := scs.New()
 	session.Lifetime = 24 * time.Hour
