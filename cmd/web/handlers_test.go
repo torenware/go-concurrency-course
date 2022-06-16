@@ -176,3 +176,37 @@ func TestHandlers_ChoosePlans(t *testing.T) {
 	}
 
 }
+
+func TestHandlers_SubscribePlan(t *testing.T) {
+	req, _ := http.NewRequest("GET", "/members/subscribe?plan=3", nil)
+	ctx := createMockContext(req)
+	req = req.WithContext(ctx)
+
+	rr := httptest.NewRecorder()
+	testApp.Session.Put(ctx, "userID", 1)
+	testApp.Session.Put(ctx, "user", data.User{
+		ID:        99,
+		FirstName: "Frederick",
+		LastName:  "Fronkenstein",
+	})
+
+	handler := http.HandlerFunc(testApp.SubscribePlan)
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusSeeOther {
+		t.Errorf("subscribe-plan: expected 'see other', got %d", rr.Code)
+	}
+
+	if !testApp.Session.Exists(ctx, "flash") {
+		t.Error("subscribe-plan: expected a flash message on success")
+	}
+
+	testApp.InfoLog.Println("now wait for routines to complete")
+	testApp.Wait.Wait()
+	testApp.InfoLog.Println("wait group released.")
+
+	if len(mailMessages) != 2 {
+		t.Errorf("subscribe-plan: expected 2 mail messages, got %d", len(mailMessages))
+	}
+
+}

@@ -208,7 +208,7 @@ func (p *PlanTest) GetOne(id int) (*Plan, error) {
 	}
 
 	plan := Plan{
-		ID:                  1,
+		ID:                  id,
 		PlanName:            "Fake Plan",
 		PlanAmount:          1500,
 		PlanAmountFormatted: "$15.00",

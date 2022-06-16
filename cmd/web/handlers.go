@@ -13,6 +13,10 @@ import (
 	"github.com/phpdave11/gofpdf/contrib/gofpdi"
 )
 
+// Directories changable for testing:
+var tempDirectory = "./tmp"
+var pdfDirectory = "./pdfs"
+
 func (app *Config) HomePage(w http.ResponseWriter, r *http.Request) {
 	app.render(w, r, "home.page.gohtml", nil)
 }
@@ -263,7 +267,7 @@ func (app *Config) SubscribePlan(w http.ResponseWriter, r *http.Request) {
 		defer app.Wait.Done()
 
 		pdf := app.GenerateManual(user, plan)
-		tmpFile := fmt.Sprintf("./tmp/%d_user-manual.pdf", user.ID)
+		tmpFile := fmt.Sprintf("%s/%d_user-manual.pdf", tempDirectory, user.ID)
 		err := pdf.OutputFileAndClose(tmpFile)
 		if err != nil {
 			app.ErrorChan <- err
@@ -313,7 +317,7 @@ func (app *Config) GenerateManual(user data.User, plan *data.Plan) *gofpdf.Fpdf 
 	// simulate a complex PDF...
 	time.Sleep(5 * time.Second)
 
-	t := importer.ImportPage(pdf, "./pdfs/manual.pdf", 1, "/MediaBox")
+	t := importer.ImportPage(pdf, fmt.Sprintf("%s/manual.pdf", pdfDirectory), 1, "/MediaBox")
 	pdf.AddPage()
 
 	// center where we are writing

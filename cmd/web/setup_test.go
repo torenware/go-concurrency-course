@@ -15,8 +15,13 @@ import (
 )
 
 var testApp Config
+var mailMessages = []Message{}
 
 func TestMain(m *testing.M) {
+
+	// Test directory locations
+	tempDirectory = "../../tmp"
+	pdfDirectory = "../../pdfs"
 
 	gob.Register(data.User{})
 	session := scs.New()
@@ -59,6 +64,7 @@ func TestMain(m *testing.M) {
 	}()
 
 	// Mailer mock
+	mailMessages = []Message{}
 	mailer := Mail{
 		Wait:       &wg,
 		MailerChan: make(chan Message),
@@ -71,7 +77,9 @@ func TestMain(m *testing.M) {
 	go func() {
 		for {
 			select {
-			case <-testApp.Mailer.MailerChan:
+			case msg := <-testApp.Mailer.MailerChan:
+				mailMessages = append(mailMessages, msg)
+				wg.Done()
 			case <-testApp.Mailer.ErrorChan:
 			case <-testApp.Mailer.DoneChan:
 				return
