@@ -71,7 +71,7 @@ func (app *Config) PostLogin(w http.ResponseWriter, r *http.Request) {
 
 	app.Session.Put(r.Context(), "userID", user.ID)
 	// user must be registered so the gob works. See main().
-	app.Session.Put(r.Context(), "user", user)
+	app.Session.Put(r.Context(), "user", *user)
 	app.Session.Put(r.Context(), "flash", "Welcome User!")
 	http.Redirect(w, r, "/", http.StatusSeeOther)
 }

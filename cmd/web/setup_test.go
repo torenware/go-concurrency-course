@@ -67,7 +67,6 @@ func TestMain(m *testing.M) {
 	}()
 
 	// Mailer mock
-	mailMessages = []Message{}
 	mailer := Mail{
 		Wait:       &wg,
 		MailerChan: make(chan Message),

@@ -139,10 +139,10 @@ func TestHandlers_PostLogin(t *testing.T) {
 		t.Errorf("%s: session still lacks a user object now", "post-login")
 	}
 
-	// _, ok := testApp.Session.Get(ctx, "user").(data.User)
-	// if !ok {
-	// 	t.Errorf("%s: user in session is not a user object", "post-login")
-	// }
+	_, ok := testApp.Session.Get(ctx, "user").(data.User)
+	if !ok {
+		t.Errorf("%s: user in session is not a user object", "post-login")
+	}
 
 }
 
@@ -179,6 +179,8 @@ func TestHandlers_ChoosePlans(t *testing.T) {
 }
 
 func TestHandlers_SubscribePlan(t *testing.T) {
+	mailMessages = []Message{}
+
 	req, _ := http.NewRequest("GET", "/members/subscribe?plan=3", nil)
 	ctx := createMockContext(req)
 	req = req.WithContext(ctx)
@@ -224,6 +226,8 @@ func TestHandlers_SubscribePlan(t *testing.T) {
 }
 
 func TestHandlers_PostRegister(t *testing.T) {
+	mailMessages = []Message{}
+
 	formPost := url.Values{}
 	formPost.Add("email", "who@first.com")
 	formPost.Add("password", "it-is-a-secret")
