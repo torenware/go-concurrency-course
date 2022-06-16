@@ -196,7 +196,7 @@ func (u *User) GetOne(id int) (*User, error) {
 
 // Update updates one user in the database, using the information
 // stored in the receiver u
-func (u *User) Update() error {
+func (u *User) Update(user User) error {
 	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
 	defer cancel()
 
@@ -217,21 +217,6 @@ func (u *User) Update() error {
 		u.ID,
 	)
 
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// Delete deletes one user from the database, by User.ID
-func (u *User) Delete() error {
-	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
-	defer cancel()
-
-	stmt := `delete from users where id = $1`
-
-	_, err := db.ExecContext(ctx, stmt, u.ID)
 	if err != nil {
 		return err
 	}
@@ -286,7 +271,7 @@ func (u *User) Insert(user User) (int, error) {
 }
 
 // ResetPassword is the method we will use to change a user's password.
-func (u *User) ResetPassword(password string) error {
+func (u *User) ResetPassword(user User, password string) error {
 	ctx, cancel := context.WithTimeout(context.Background(), dbTimeout)
 	defer cancel()
 
@@ -296,7 +281,7 @@ func (u *User) ResetPassword(password string) error {
 	}
 
 	stmt := `update users set password = $1 where id = $2`
-	_, err = db.ExecContext(ctx, stmt, hashedPassword, u.ID)
+	_, err = db.ExecContext(ctx, stmt, hashedPassword, user.ID)
 	if err != nil {
 		return err
 	}
@@ -307,8 +292,8 @@ func (u *User) ResetPassword(password string) error {
 // PasswordMatches uses Go's bcrypt package to compare a user supplied password
 // with the hash we have stored for a given user in the database. If the password
 // and hash match, we return true; otherwise, we return false.
-func (u *User) PasswordMatches(plainText string) (bool, error) {
-	err := bcrypt.CompareHashAndPassword([]byte(u.Password), []byte(plainText))
+func (u *User) PasswordMatches(user User, plainText string) (bool, error) {
+	err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(plainText))
 	if err != nil {
 		switch {
 		case errors.Is(err, bcrypt.ErrMismatchedHashAndPassword):

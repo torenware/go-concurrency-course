@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 )
@@ -101,6 +102,77 @@ func TestHandlers_GetPages(t *testing.T) {
 		if rr.Code != page.ExpectedCode {
 			t.Errorf("%s: expected %d, got %d", page.Page, page.ExpectedCode, rr.Code)
 		}
+	}
+
+}
+
+func TestHandlers_PostLogin(t *testing.T) {
+	formPost := url.Values{}
+	formPost.Add("email", "who@first.com")
+	formPost.Add("password", "it-is-a-secret")
+
+	req, _ := http.NewRequest("POST", "/login", strings.NewReader(formPost.Encode()))
+	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
+	ctx := createMockContext(req)
+	req = req.WithContext(ctx)
+
+	rr := httptest.NewRecorder()
+
+	handler := http.HandlerFunc(testApp.PostLogin)
+	handler.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusSeeOther {
+		t.Errorf("%s: expected %d but got %d", "post-login", http.StatusSeeOther, rr.Code)
+	}
+
+	// and we should have a flash
+	if !testApp.Session.Exists(ctx, "flash") {
+		t.Errorf("%s: login was not successful", "post-login")
+	}
+
+	if !testApp.Session.Exists(ctx, "userID") {
+		t.Errorf("%s: session still lacks a userID now", "post-login")
+	}
+
+	if !testApp.Session.Exists(ctx, "user") {
+		t.Errorf("%s: session still lacks a user object now", "post-login")
+	}
+
+	// _, ok := testApp.Session.Get(ctx, "user").(data.User)
+	// if !ok {
+	// 	t.Errorf("%s: user in session is not a user object", "post-login")
+	// }
+
+}
+
+func TestHandlers_ChoosePlans(t *testing.T) {
+	pathToTemplates = "./templates"
+
+	req, _ := http.NewRequest("GET", "/members/plans", nil)
+	ctx := createMockContext(req)
+	req = req.WithContext(ctx)
+
+	rr := httptest.NewRecorder()
+
+	nextHandler := http.HandlerFunc(testApp.ChoosePlans)
+	// wrap the handler in the middleware
+	wrapped := testApp.Auth(nextHandler)
+	wrapped.ServeHTTP(rr, req)
+
+	// We should not be allowed to this page w/o credentials
+	if rr.Code != http.StatusTemporaryRedirect {
+		t.Errorf("choose-plans: expected redirect since not logged in, got %d", rr.Code)
+	}
+
+	rr = httptest.NewRecorder()
+	testApp.Session.Put(ctx, "userID", 1)
+	testApp.Session.Put(ctx, "user", data.User{})
+	req = req.WithContext(ctx)
+	wrapped.ServeHTTP(rr, req)
+
+	// We should now be allowed to this page
+	if rr.Code != http.StatusOK {
+		t.Errorf("choose-plans: expected to see this page, but got %d", rr.Code)
 	}
 
 }

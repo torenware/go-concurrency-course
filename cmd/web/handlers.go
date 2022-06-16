@@ -41,7 +41,7 @@ func (app *Config) PostLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	matches, err := user.PasswordMatches(password)
+	matches, err := app.Models.User.PasswordMatches(*user, password)
 	if err != nil {
 		// set up flash etc.
 		app.Session.Put(r.Context(), "error", "Invalid credentials")
@@ -177,7 +177,7 @@ func (app *Config) ActivateUser(w http.ResponseWriter, r *http.Request) {
 	user.Active = 1
 	user.UpdatedAt = time.Now()
 
-	err = user.Update()
+	err = app.Models.User.Update(*user)
 	if err != nil {
 		app.ErrorLog.Println("problem updating user", err)
 		app.errorFlash(w, r, "Sorry! Problem handling your registration!", "/")
